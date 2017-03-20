@@ -383,6 +383,13 @@ public class Settings {
         public boolean enableAuditLog = false;
 
         /**
+         * The fully qualified class name of the {@link HttpAuthenticationHandler} implementation.
+         * This class name will be used to load the implementation from the classpath.
+         * Defaults to null when not specified.
+         */
+        public String httpAuthHandlerClassName = null;
+
+        /**
          * A {@link Map} containing {@link Authenticator} specific configurations. Consult the
          * {@link Authenticator} implementation for specifics on what configurations are expected.
          */
@@ -420,7 +427,7 @@ public class Settings {
          * contain an X.509 certificate chain in PEM format. {@code null} uses the system default.
          */
         public String trustCertChainFile = null;
-        
+
         /**
          * Require client certificate authentication
          */

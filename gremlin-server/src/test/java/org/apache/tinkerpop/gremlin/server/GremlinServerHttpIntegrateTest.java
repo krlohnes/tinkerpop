@@ -112,6 +112,9 @@ public class GremlinServerHttpIntegrateTest extends AbstractGremlinServerIntegra
             case "should200OnPOSTWithAuthorizationHeader":
                 configureForAuthentication(settings);
                 break;
+            case "should200OnPOSTWithAuthorizationHeaderExplicitHandlerSetting":
+                configureForAuthenticationWithHandlerClass(settings);
+                break;
             case "should401OnPOSTWithInvalidPasswordAuthorizationHeaderOld":
             case "should200OnPOSTWithAuthorizationHeaderOld":
                 configureForAuthenticationOld(settings);
@@ -127,6 +130,21 @@ public class GremlinServerHttpIntegrateTest extends AbstractGremlinServerIntegra
         // use a credentials graph with one user in it: stephen/password
         final Map<String,Object> authConfig = new HashMap<>();
         authConfig.put(SimpleAuthenticator.CONFIG_CREDENTIALS_DB, "conf/tinkergraph-credentials.properties");
+
+        authSettings.config = authConfig;
+        settings.authentication = authSettings;
+    }
+
+    private void configureForAuthenticationWithHandlerClass(final Settings settings) {
+        final Settings.AuthenticationSettings authSettings = new Settings.AuthenticationSettings();
+        authSettings.className = SimpleAuthenticator.class.getName();
+
+        // use a credentials graph with one user in it: stephen/password
+        final Map<String,Object> authConfig = new HashMap<>();
+        authConfig.put(SimpleAuthenticator.CONFIG_CREDENTIALS_DB, "conf/tinkergraph-credentials.properties");
+
+        //Add basic auth handler to make sure the reflection code path works.
+        authConfig.put("httpAuthHandlerClassName", "org.apache.tinkerpop.gremlin.server.handler.HttpBasicAuthenticationHandler");
 
         authSettings.config = authConfig;
         settings.authentication = authSettings;
@@ -273,6 +291,23 @@ public class GremlinServerHttpIntegrateTest extends AbstractGremlinServerIntegra
     public void should200OnPOSTWithAuthorizationHeader() throws Exception {
         final CloseableHttpClient httpclient = HttpClients.createDefault();
         final HttpPost httppost = new HttpPost(TestClientFactory.createURLString());
+        httppost.addHeader("Content-Type", "application/json");
+        httppost.addHeader("Authorization", "Basic " + encoder.encodeToString("stephen:password".getBytes()));
+        httppost.setEntity(new StringEntity("{\"gremlin\":\"1-1\"}", Consts.UTF_8));
+
+        try (final CloseableHttpResponse response = httpclient.execute(httppost)) {
+            assertEquals(200, response.getStatusLine().getStatusCode());
+            assertEquals("application/json", response.getEntity().getContentType().getValue());
+            final String json = EntityUtils.toString(response.getEntity());
+            final JsonNode node = mapper.readTree(json);
+            assertEquals(0, node.get("result").get("data").get(0).intValue());
+        }
+    }
+
+    @Test
+    public void should200OnPOSTWithAuthorizationHeaderExplicitHandlerSetting() throws Exception {
+        final CloseableHttpClient httpclient = HttpClients.createDefault();
+        final HttpPost httppost = new HttpPost("http://localhost:8182");
         httppost.addHeader("Content-Type", "application/json");
         httppost.addHeader("Authorization", "Basic " + encoder.encodeToString("stephen:password".getBytes()));
         httppost.setEntity(new StringEntity("{\"gremlin\":\"1-1\"}", Consts.UTF_8));
